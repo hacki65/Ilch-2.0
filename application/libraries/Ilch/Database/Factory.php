@@ -29,15 +29,18 @@ class Factory
         if (DebugBar::isInitialized()) {
             $debugDbClass = $dbClass . 'Debug';
             if (class_exists($debugDbClass)) {
-                $dbClass = $debugDbClass;
+                $db = new $debugDbClass(DebugBar::getInstance()->getCollector('exceptions'));
                 $addDebugCollector = true;
             }
         }
 
-        if (!class_exists($dbClass)) {
+        if (!isset($db) && class_exists($dbClass)) {
+            $db = new $dbClass();
+        } else {
             throw new \RuntimeException('Invalid database engine ' . $dbData['dbEngine']);
         }
-        $db = new $dbClass();
+        /** @var Mysql|MysqlDebug $db */
+
         $hostParts = explode(':', $dbData['dbHost']);
         $port = null;
 
