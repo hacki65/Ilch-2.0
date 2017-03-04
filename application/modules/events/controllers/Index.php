@@ -9,6 +9,7 @@ namespace Modules\Events\Controllers;
 use Modules\Events\Mappers\Events as EventMapper;
 use Modules\Events\Models\Events as EventModel;
 use Modules\Events\Mappers\Entrants as EntrantsMapper;
+use Modules\Events\Mappers\Currency as CurrencyMapper;
 use Modules\User\Mappers\Setting as SettingMapper;
 use Ilch\Validation;
 
@@ -19,6 +20,8 @@ class Index extends \Ilch\Controller\Frontend
         $eventMapper = new EventMapper();
         $entrantsMapper = new EntrantsMapper();
 
+        $this->getLayout()->getTitle()
+            ->add($this->getTranslator()->trans('menuEvents'));
         $this->getLayout()->getHmenu()
                 ->add($this->getTranslator()->trans('menuEvents'), ['controller' => 'index']);
 
@@ -38,15 +41,23 @@ class Index extends \Ilch\Controller\Frontend
         $eventMapper = new EventMapper();
         $eventModel = new EventModel();
         $settingMapper = new SettingMapper();
+        $currencyMapper = new CurrencyMapper();
 
         $event = $eventMapper->getEventById($this->getRequest()->getParam('id'));
         if ($this->getRequest()->getParam('id')) {
+            $this->getLayout()->getTitle()
+                ->add($this->getTranslator()->trans('menuEvents'))
+                ->add($event->getTitle())
+                ->add($this->getTranslator()->trans('edit'));
             $this->getLayout()->getHmenu()->add($this->getTranslator()->trans('menuEvents'), ['action' => 'index'])
                     ->add($event->getTitle(), ['controller' => 'show', 'action' => 'event', 'id' => $event->getId()])
                     ->add($this->getTranslator()->trans('edit'), ['action' => 'treat', 'id' => $event->getId()]);
 
             $this->getView()->set('event', $eventMapper->getEventById($this->getRequest()->getParam('id')));
         } else {
+            $this->getLayout()->getTitle()
+                ->add($this->getTranslator()->trans('menuEvents'))
+                ->add($this->getTranslator()->trans('add'));
             $this->getLayout()->getHmenu()->add($this->getTranslator()->trans('menuEvents'), ['action' => 'index'])
                     ->add($this->getTranslator()->trans('add'), ['action' => 'treat']);
         }
@@ -62,18 +73,17 @@ class Index extends \Ilch\Controller\Frontend
                 $event = $eventMapper->getEventById($this->getRequest()->getParam('id'));
             }
 
-            $post = [
-                'title' => trim($this->getRequest()->getPost('title')),
-                'place' => trim($this->getRequest()->getPost('place')),
-                'text' => trim($this->getRequest()->getPost('text')),
-                'calendarShow' => trim($this->getRequest()->getPost('calendarShow'))
-            ];
+            Validation::setCustomFieldAliases([
+                'start' => 'startTime',
+                'end' => 'endTime'
+            ]);
 
-            $validation = Validation::create($post, [
-                'title'         => 'required',
-                'place'         => 'required',
-                'text'          => 'required',
-                'calendarShow'  => 'numeric|min:0|max:1'
+            $validation = Validation::create($this->getRequest()->getPost(), [
+                'start'        => 'required',
+                'title'        => 'required',
+                'place'        => 'required',
+                'text'         => 'required',
+                'calendarShow' => 'numeric|min:0|max:1'
             ]);
 
             if ($validation->isValid()) {
@@ -134,37 +144,43 @@ class Index extends \Ilch\Controller\Frontend
                         $eventModel->setImage($image);
                     }
                     if ($this->getConfig()->get('event_google_maps_api_key') != '') {
-                        $eventModel->setLatLong($eventMapper->getLatLongFromAddress($place, $this->getConfig()->get('event_google_maps_api_key')));
+                        $eventModel->setLatLong($eventMapper->getLatLongFromAddress($this->getRequest()->getPost('place'), $this->getConfig()->get('event_google_maps_api_key')));
                     }
 
-                    $eventModel->setUserId($this->getUser()->getId());
-                    $eventModel->setTitle($post['title']);
-                    $eventModel->setStart(new \Ilch\Date(trim($this->getRequest()->getPost('start'))));
-                    $eventModel->setEnd(new \Ilch\Date(trim($this->getRequest()->getPost('end'))));
-                    $eventModel->setPlace($post['place']);
-                    $eventModel->setText($post['text']);
-                    $eventModel->setShow($post['calendarShow']);
+                    $eventModel->setUserId($this->getUser()->getId())
+                            ->setTitle($this->getRequest()->getPost('title'))
+                            ->setStart(new \Ilch\Date($this->getRequest()->getPost('start')))
+                            ->setEnd(new \Ilch\Date($this->getRequest()->getPost('end')))
+                            ->setPlace($this->getRequest()->getPost('place'))
+                            ->setText($this->getRequest()->getPost('text'))
+                            ->setCurrency($this->getRequest()->getPost('currency'))
+                            ->setPrice($this->getRequest()->getPost('price'))
+                            ->setPriceArt($this->getRequest()->getPost('priceArt'))
+                            ->setShow($this->getRequest()->getPost('calendarShow'));
                     $eventMapper->save($eventModel);
-
-                    $this->addMessage('saveSuccess');
 
                     if ($this->getRequest()->getPost('image_delete') != '') {
                         $eventMapper->delImageById($this->getRequest()->getParam('id'));
 
-                        $this->redirect(['action' => 'treat', 'id' => $this->getRequest()->getParam('id')]);
+                        $this->redirect()
+                            ->withMessage('saveSuccess')
+                            ->to(['action' => 'treat', 'id' => $this->getRequest()->getParam('id')]);
                     }
 
                     if ($this->getRequest()->getParam('id')) {
-                        $eventId = $this->getRequest()->getParam('id');
-                        $this->redirect(['controller' => 'show', 'action' => 'event', 'id' => $eventId]);
+                        $this->redirect()
+                            ->withMessage('saveSuccess')
+                            ->to(['controller' => 'show', 'action' => 'event', 'id' => $this->getRequest()->getParam('id')]);
                     } else {
-                        $this->redirect(['controller' => 'show', 'action' => 'my']);
+                        $this->redirect()
+                            ->withMessage('saveSuccess')
+                            ->to(['controller' => 'show', 'action' => 'my']);
                     }
                 }
             }
-
+            $this->addMessage($validation->getErrorBag()->getErrorMessages(), 'danger', true);
             $this->redirect()
-                ->withInput($post)
+                ->withInput()
                 ->withErrors($validation->getErrorBag())
                 ->to(['action' => 'treat']);
         }
@@ -178,6 +194,7 @@ class Index extends \Ilch\Controller\Frontend
         $this->getView()->set('image_width', $imageWidth);
         $this->getView()->set('image_size', $imageSize);
         $this->getView()->set('image_filetypes', $imageAllowedFiletypes);
+        $this->getView()->set('currencies', $currencyMapper->getCurrencies());
         $this->getView()->set('event_google_maps_api_key', $this->getConfig()->get('event_google_maps_api_key'));
     }
 

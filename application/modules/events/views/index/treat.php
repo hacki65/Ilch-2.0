@@ -12,16 +12,6 @@
     }
     ?>
 </legend>
-<?php if ($this->validation()->hasErrors()): ?>
-    <div class="alert alert-danger" role="alert">
-        <strong> <?=$this->getTrans('errorsOccured') ?>:</strong>
-        <ul>
-            <?php foreach ($this->validation()->getErrorMessages() as $error): ?>
-                <li><?= $error; ?></li>
-            <?php endforeach; ?>
-        </ul>
-    </div>
-<?php endif; ?>
 <form class="form-horizontal" method="POST" enctype="multipart/form-data" action="">
     <?=$this->getTokenField() ?>
     <div class="form-group">
@@ -61,7 +51,7 @@
             </div>
         </div>
     </div>
-    <div class="form-group">
+    <div class="form-group <?=$this->validation()->hasError('start') ? 'has-error' : '' ?>">
         <label for="start" class="col-md-2 control-label">
             <?=$this->getTrans('startTime') ?>:
         </label>
@@ -71,14 +61,14 @@
                    id="start"
                    name="start"
                    size="16"
-                   value="<?php if ($this->get('event') != '') { echo date('d.m.Y H:i', strtotime($this->get('event')->getStart())); } ?>"
+                   value="<?php if ($this->get('event') != '') { echo date('d.m.Y H:i', strtotime($this->get('event')->getStart())); } elseif ($this->originalInput('start') != '') { echo date('d.m.Y H:i', strtotime($this->originalInput('start'))); } ?>"
                    readonly>
             <span class="input-group-addon">
                 <span class="fa fa-calendar"></span>
             </span>
         </div>
     </div>
-    <div class="form-group">
+    <div class="form-group <?=$this->validation()->hasError('end') ? 'has-error' : '' ?>">
         <label for="end" class="col-md-2 control-label">
             <?=$this->getTrans('endTime') ?>:
         </label>
@@ -88,7 +78,7 @@
                    id="end"
                    name="end"
                    size="16"
-                   value="<?php if ($this->get('event') != '' AND $this->get('event')->getEnd() != '0000-00-00 00:00:00') { echo date('d.m.Y H:i', strtotime($this->get('event')->getEnd())); } ?>"
+                   value="<?php if ($this->get('event') != '') { echo date('d.m.Y H:i', strtotime($this->get('event')->getEnd())); } elseif ($this->originalInput('end') != '') { echo date('d.m.Y H:i', strtotime($this->originalInput('end'))); } ?>"
                    readonly>
             <span class="input-group-addon">
                 <span class="fa fa-times"></span>
@@ -132,6 +122,39 @@
                       name="text"
                       toolbar="ilch_bbcode"
                       rows="5"><?=($this->get('event') != '') ? $this->escape($this->get('event')->getText()) : $this->originalInput('text') ?></textarea>
+        </div>
+    </div>
+    <div class="form-group <?=$this->validation()->hasError('price') ? 'has-error' : '' ?>">
+        <label for="price" class="col-lg-2 control-label">
+            <?=$this->getTrans('price') ?>:
+        </label>
+        <div class="col-lg-2">
+            <select class="form-control" id="priceArt" name="priceArt">
+                <option <?php if ($this->get('event') != '' AND $this->get('event')->getPriceArt() == 0) { echo 'selected="selected"'; } ?> value="0"><?=$this->getTrans('select') ?></option>
+                <option <?php if ($this->get('event') != '' AND $this->get('event')->getPriceArt() == 1) { echo 'selected="selected"'; } ?> value="1"><?=$this->getTrans('ticket') ?></option>
+                <option <?php if ($this->get('event') != '' AND $this->get('event')->getPriceArt() == 2) { echo 'selected="selected"'; } ?> value="2"><?=$this->getTrans('entry') ?></option>
+            </select>
+        </div>
+        <div class="col-lg-4">
+            <input type="number"
+                   class="form-control"
+                   id="price"
+                   name="price"
+                   step="0.01"
+                   value="<?=($this->get('event') != '') ? $this->escape($this->get('event')->getPrice()) : $this->originalInput('price') ?>" />
+        </div>
+        <div class="col-lg-2">
+            <select class="form-control" id="currency" name="currency">
+                <option <?php if ($this->get('event') != '' AND $this->get('event')->getPriceArt() == 0) { echo 'selected="selected"'; } ?> value="0"><?=$this->getTrans('select') ?></option>
+                <?php foreach ($this->get('currencies') as $currency) {
+                    if ($this->get('event') != '' AND $this->get('event')->getCurrency() == $currency->getId()) {
+                        echo '<option value="'.$currency->getId().'" selected="selected">'.$this->escape($currency->getName()).'</option>';
+                    } else {
+                        echo '<option value="'.$currency->getId().'">'.$this->escape($currency->getName()).'</option>';
+                    }
+                }
+                ?>
+            </select>
         </div>
     </div>
     <?php if ($this->get('calendarShow') == 1): ?>
