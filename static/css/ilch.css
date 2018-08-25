@@ -84,7 +84,6 @@ img {
     color: #AA0000;
 }
 
-
 /* Set cursor and remove left border on input-group-addon fa-times span to remove input value */
 .input-group .input-group-addon span.fa-times {
     cursor: pointer;
